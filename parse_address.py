@@ -20,8 +20,8 @@ def parse_address(df, from_col, neiro=0):
     print(report)
     df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]].notna().sum().plot(kind="barh")
     end_time = time.time()
-    execution_time = (end_time - start_time)
-    print(f"Время выполнения: {execution_time} секунд")
+    execution_time = (end_time - start_time) / 60
+    print(f"Время выполнения: {execution_time} мин.")
     return df
 
 
@@ -291,21 +291,24 @@ def get_street_new(string, mo, nas_punkt):
             # print(pat)
             match = re.search(street, string, re.IGNORECASE)
             if match:
+                nas_punkt_temp = street
                 match_suffix = re.search(fr'''(\s|,){suffix}(\s|\.)''', string, re.IGNORECASE)
                 if match_suffix:
                     street_list.append([suffix, street])
+                    break
 
         # print(street_list)
         if len(street_list) == 1:
             res = street_list[0]
             return ". ".join(res)
-        elif len(street_list) > 1:
-            for item in street_list:
-                suffix = item[0]
-                # print(suffix)
-                match_suffix = re.search(fr'''(\s|,){suffix}(\s|\.)''', string, re.IGNORECASE)
-                if match_suffix:
-                    return ". ".join([suffix, item[1]])
+
+        # elif len(street_list) > 1:
+        #     for item in street_list:
+        #         suffix = item[0]
+        #         # print(suffix)
+        #         match_suffix = re.search(fr'''(\s|,){suffix}(\s|\.)''', string, re.IGNORECASE)
+        #         if match_suffix:
+        #             return ". ".join([suffix, item[1]])
 
 
 # =================================================== ДОМ ===================================
