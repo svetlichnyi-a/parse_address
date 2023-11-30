@@ -20,8 +20,8 @@ def parse_address(df, from_col, neiro=0):
     print(report)
     df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]].notna().sum().plot(kind="barh")
     end_time = time.time()
-    execution_time = (end_time - start_time) / 60
-    print(f"Время выполнения: {execution_time} минут")
+    execution_time = (end_time - start_time)
+    print(f"Время выполнения: {execution_time} секунд")
     return df
 
 
@@ -290,8 +290,8 @@ def get_street_new(string, mo, nas_punkt):
         for street, suffix in zip(streets["street"], streets["street_suffix"]):
             # print(pat)
             match = re.search(street, string, re.IGNORECASE)
-            match_suffix = re.search(fr'''(\s|,){suffix}(\s|\.)''', string, re.IGNORECASE)
             if match:
+                match_suffix = re.search(fr'''(\s|,){suffix}(\s|\.)''', string, re.IGNORECASE)
                 if match_suffix:
                     street_list.append([suffix, street])
 
