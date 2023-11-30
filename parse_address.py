@@ -15,13 +15,15 @@ def parse_address(df, from_col, neiro=0):
     df["Муниципалитет"] = df["Адрес"].apply(get_mo_re, neiro=neiro)
     df[["Населенный пункт", "Улица", "Дом", "Квартира"]] = df.apply(main_func, axis=1, result_type='expand')
 
-    report = df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]].notna().sum() / df.shape[0] * 100
+    report = df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]].notna().sum() / df.shape[
+        0] * 100
     print(report)
     df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]].notna().sum().plot(kind="barh")
     end_time = time.time()
     execution_time = (end_time - start_time) / 60
     print(f"Время выполнения: {execution_time} минут")
     return df
+
 
 # ====================================================================================
 
@@ -81,6 +83,7 @@ def losk(string):
 
         return string
 
+
 def cleen_string(string):
     # очищает строку от не нужных символов и переводит в верхний регистр
     if string is None:
@@ -92,6 +95,7 @@ def cleen_string(string):
         if match:
             res = " ".join(match)
             return res.upper()
+
 
 # ========================================= МУНИЦИПАЛИТЕТ ======================================
 def get_mo_re(string, neiro=0):
@@ -178,6 +182,7 @@ def get_mo_re(string, neiro=0):
             res = get_mo_neiroset(string)
             return res
 
+
 # =================================== парсинг НОВЫЙ ПОДХОД ===============================
 # загружаем справочник из БД
 def get_in_postgreSQL(name_table):
@@ -203,17 +208,17 @@ def get_in_postgreSQL(name_table):
     # Создание курсора
     cur = conn.cursor()
 
-
-    #Выполнение SQL-запроса
+    # Выполнение SQL-запроса
     cur.execute(f'SELECT * FROM {name_table}')
 
-    #Получение результатов
+    # Получение результатов
     result = cur.fetchall()
     result = pd.DataFrame(result)
     # Закрытие курсора и соединения
     cur.close()
     conn.close()
     return result
+
 
 spravochnik_street = get_in_postgreSQL("public.spravochnik_street")
 spravochnik_street.columns = ['mo', 'nas_punkt', 'street', 'nas_punkt_suffix', 'street_suffix']
@@ -233,7 +238,7 @@ def get_nas_punkt_new(string, mo):
         string = str(string).upper()
         if mo != "БЕЛГОРОД":
             end_index = string.find(mo) + len(mo)
-            string = string[end_index :]
+            string = string[end_index:]
         # print(string)
         nas_punkt_list = []
         patterns = spravochnik_street
@@ -268,19 +273,20 @@ def get_street_new(string, mo, nas_punkt):
     if (mo is None) | (nas_punkt is None) | (string is None):
         return None
     else:
-        mo = str(mo).upper()
-        nas_punkt = str(nas_punkt).upper()
+        mo = mo.upper()
+        nas_punkt = nas_punkt.upper()
         nas_punkt = nas_punkt.split(maxsplit=1)[1]
         # print(nas_punkt)
-        string = str(string).upper()
+        string = string.upper()
 
         end_index = string.find(nas_punkt) + len(nas_punkt)
-        string = string[end_index :]
+        string = string[end_index:]
 
         street_list = []
         patterns = spravochnik_street
-        streets = patterns.loc[(patterns["mo"] == mo) & (patterns["nas_punkt"] == nas_punkt)][["street", "street_suffix"]]
-        streets = streets.drop_duplicates()
+        streets = spravochnik_street\
+        .loc[(spravochnik_street["mo"] == mo) & (spravochnik_street["nas_punkt"] == nas_punkt)][["street", "street_suffix"]]\
+        .drop_duplicates()
         for street, suffix in zip(streets["street"], streets["street_suffix"]):
             # print(pat)
             match = re.search(street, string, re.IGNORECASE)
@@ -319,8 +325,8 @@ def get_home_new(string, street):
         # print(string)
 
         levels = [
-                    r"\d+[А-я0-9/-]{0,5}(?=,|\s|$)"
-                  ]
+            r"\d+[А-я0-9/-]{0,5}(?=,|\s|$)"
+        ]
         for pattern in levels:
             match = re.search(pattern, string, flags=re.IGNORECASE)
             # print(match)
@@ -345,8 +351,8 @@ def get_kvartira_new(string, street):
         # print(string)
 
         levels = [
-                    r"(?<=КВ\.|КВ )[ ]{0,1}\d+[А-я0-9/-]{0,5}(?=,|\s|$)"
-                  ]
+            r"(?<=КВ\.|КВ )[ ]{0,1}\d+[А-я0-9/-]{0,5}(?=,|\s|$)"
+        ]
         for pattern in levels:
             match = re.search(pattern, string, flags=re.IGNORECASE)
             # print(match)
@@ -429,11 +435,4 @@ def get_mo_neiroset(string):
 
     return name_label
 
-
 # ====================================================================================================
-
-
-
-
-
-
