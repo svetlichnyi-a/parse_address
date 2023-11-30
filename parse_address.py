@@ -24,7 +24,7 @@ def parse_address(df, from_col, neiro=0):
     print("Улица определена")
     df["Дом"] = df.apply(lambda row: get_home_new(row["Адрес"], row["Улица"]), axis=1)
     print("Дом определен")
-    df["Квартира"] = df["Адрес"].apply(get_kvartira)
+    df["Квартира"] = df.apply(lambda row: get_kvartira_new(row["Адрес"], row["Улица"]), axis=1)
     print("Квартира определена \n")
     report = df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]].notna().sum() / df.shape[0] * 100
 
@@ -332,7 +332,7 @@ def get_street_new(string, mo, nas_punkt):
 def get_home_new(string, street):
     '''
         Определяет дом с помощью регулярного выражения
-        '''
+    '''
 
     if (string is None) | (street is None):
         return None
@@ -354,9 +354,35 @@ def get_home_new(string, street):
                 return match.group().strip()
 
 
-# =============================================================================================
+# ========================================== КВАРТИРА ===================================================
+def get_kvartira_new(string, street):
+    '''
+        Определяет дом с помощью регулярного выражения
+    '''
+
+    if (string is None) | (street is None):
+        return None
+    else:
+        string = str(string).upper()
+        street = street.split(maxsplit=1)[1]
+        end_index = string.find(street) + len(street)
+        string = string[end_index:]
+        # print(string)
+
+        levels = [
+                    r"(?<=КВ\.|КВ )[ ]{0,1}\d+[А-я0-9/-]{0,5}(?=,|\s|$)"
+                  ]
+        for pattern in levels:
+            match = re.search(pattern, string, flags=re.IGNORECASE)
+            # print(match)
+            if match:
+                # print(match[0])
+                return match.group().strip()
 
 
+
+
+# =======================================================================================================
 def get_home(string):
     # получает из строки номер дома
     if string is None:
@@ -382,8 +408,10 @@ def get_kvartira(string):
         return None
     else:
         string = str(string).strip()
-        levels = [r"(?<=КВ\.)[ ]{0,1}\d{1,3}[А-Яа-я]{0,1}?(?=[,. ])",  # ищет от КВ. до запятой, точки или пробела
+        levels = [r"(?<=КВ\.)[ ]{0,1}\d{1,3}[А-я]{0,1}?(?=[,. ])",  # ищет от КВ. до запятой, точки или пробела
                   r"(?<=КВ\.)[ ]{0,1}\d{1,3}[А-Яа-я]{0,1}?$",  # ищет от КВ. до конца строки
+
+                  r"(?<=КВ\.|КВ )[ ]{0,1}\d+[А-я0-9/-]{0,5}(?=,|\s|$)"
                   ]
         for pattern in levels:
             match = re.findall(pattern, string, flags=re.IGNORECASE)
