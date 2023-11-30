@@ -6,37 +6,34 @@ import matplotlib.pyplot as plt
 import time
 
 
-
-
+# ================================= ОСНОВНАЯ ФУНКЦИЯ ======================================
 def parse_address(df, from_col, neiro=0):
     # основная функция, которая создает нужные колонки и парсит в них адрес
     start_time = time.time()
     df = df.copy()
     df["Адрес"] = df[from_col].apply(cleen_string)
     df["Муниципалитет"] = df["Адрес"].apply(get_mo_re, neiro=neiro)
-    print("Муниципалитет определен")
-    # df["Населенный пункт"] = df["Адрес"].apply(get_nas_punkt)
-    df["Населенный пункт"] = df.apply(lambda row: get_nas_punkt_new(row["Адрес"], row["Муниципалитет"]), axis=1)
-    print("Населенный пункт определен")
-    # df["Улица"] = df["Адрес"].apply(get_street)
-    df["Улица"] = df.apply(lambda row: get_street_new(row["Адрес"], row["Муниципалитет"], row["Населенный пункт"]), axis=1)
-    # df["Улица"] = df.apply(get_street_new, args=(2, 3), axis=1)
-    print("Улица определена")
-    df["Дом"] = df.apply(lambda row: get_home_new(row["Адрес"], row["Улица"]), axis=1)
-    print("Дом определен")
-    df["Квартира"] = df.apply(lambda row: get_kvartira_new(row["Адрес"], row["Улица"]), axis=1)
-    print("Квартира определена \n")
-    report = df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]].notna().sum() / df.shape[0] * 100
+    df[["Населенный пункт", "Улица", "Дом", "Квартира"]] = df.apply(main_func, axis=1, result_type='expand')
 
+    report = df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]].notna().sum() / df.shape[0] * 100
+    print(report)
+    df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]].notna().sum().plot(kind="barh")
     end_time = time.time()
     execution_time = (end_time - start_time) / 60
     print(f"Время выполнения: {execution_time} минут")
-
-    print(report)
-    df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]].notna().sum().plot(kind="barh")
     return df
 
+# ====================================================================================
 
+def main_func(row):
+    nas_punkt = get_nas_punkt_new(row["Адрес"], row["Муниципалитет"])
+    street = get_street_new(row["Адрес"], row["Муниципалитет"], nas_punkt)
+    home = get_home_new(row["Адрес"], street)
+    kvartira = get_kvartira_new(row["Адрес"], street)
+    return (nas_punkt, street, home, kvartira)
+
+
+# =====================================================================================
 
 def losk(string):
     # приводит к единому формату элементы адреса
@@ -84,8 +81,6 @@ def losk(string):
 
         return string
 
-
-# print(losk("С. ЖУРАВЛЕВКА"))
 def cleen_string(string):
     # очищает строку от не нужных символов и переводит в верхний регистр
     if string is None:
@@ -98,345 +93,7 @@ def cleen_string(string):
             res = " ".join(match)
             return res.upper()
 
-
-def get_nas_punkt(string):
-    # вытягивает из строки населенный пункт
-    import re
-    if string is None:
-        return None
-    else:
-        string = str(string)
-        if get_reverse_neiroset(string, model=model_reverse, tokenizer=tokenizer_reverse) == "вначале":
-            levels = [r"Г\.[ ]{0,1}[А-Яа-я -]+?(?=,|$)",  # ищет от Г. до запятой
-                      r"С\.[ ]{0,1}[А-Яа-я -]+?(?=,|$)",  # ищет от С. до запятой
-                      r"СЕЛО [А-Яа-я -]+?(?=,|$)",  # ищет от СЕЛО до запятой
-                      r"П\.[ ]{0,1}[А-Яа-я -]+?(?=,|$)",  # ищет от П. до запятой
-                      r"\sПГТ\.[ ]{0,1}[А-Яа-я -]+?(?=\s|$|,)",
-                      r"\sПГТ[ ]{0,1}[А-Яа-я -]+?(?=\s|$|,)",
-                      r"Г\.[ ]{0,1}[А-Яа-я -]+?(?=\s)",
-                      r"\sС\s[А-Яа-я -]+?(?=\s)",
-                      r"\sСЕЛО\s[А-Яа-я -]+?(?=\s|$)",
-                      r"\sПОСЕЛОК\s[А-Яа-я -]+(?=$|,)",
-                      r"\Г\s[А-Яа-я -]+?(?=$|,)",
-                      r"\ХУТОР\s[А-Яа-я -]+?(?=$|,)",
-                      r"Х\.[ ]{0,1}[А-Яа-я -]+?(?=,|$)",
-                      r"\СТАНЦИЯ\s[А-Яа-я -]+?(?=$|,)",
-                      r"\sС\s[А-Яа-я -]+?(?=,|$)",
-                      r"\sП\s[А-Яа-я -]+?(?=,|$)",
-                      r"\sГ\s[А-Яа-я -]+?(?=,|$)",
-                      ]
-            for pattern in levels:
-                match = re.findall(pattern, string, flags=re.IGNORECASE)
-                if len(match) == 1:
-                    res = losk(match[0])
-                    return losk(res)
-
-        else:
-            levels = [r"(?<=\,)[ ]{0,1}[А-Яа-я -]+ Г\.",
-                      r"(?<=\.)[ ]{0,1}[А-Яа-я -]+ Г\.",
-                      r"(?<=\,)[ ]{0,1}[А-Яа-я -]+ Г\s",
-                      r"(?<=\.)[ ]{0,1}[А-Яа-я -]+ Г\s",
-
-                      r"(?<=\,)[ ]{0,1}[А-Яа-я -]+ С\.",
-                      r"(?<=\.)[ ]{0,1}[А-Яа-я -]+ С\.",
-                      r"(?<=\,)[ ]{0,1}[А-Яа-я -]+ С\s",
-                      r"(?<=\.)[ ]{0,1}[А-Яа-я -]+ С\s",
-
-                      r"(?<=\,)[ ]{0,1}[А-Яа-я -]+ П\.",
-                      r"(?<=\.)[ ]{0,1}[А-Яа-я -]+ П\.",
-                      r"(?<=\,)[ ]{0,1}[А-Яа-я -]+ П\s",
-                      r"(?<=\.)[ ]{0,1}[А-Яа-я -]+ П\s",
-
-                      r"\w+ ПГТ\.",
-                      r"\w+ Г\.",
-                      r"\w+ Г\.",
-                      ]
-            for pattern in levels:
-                match = re.findall(pattern, string, flags=re.IGNORECASE)
-                if len(match) == 1:
-                    res = losk(match[0])
-                    return losk(res)
-
-
-
-
-
-# print(get_nas_punkt("БЕЛГОРОДСКАЯ ОБЛАСТЬ, Р-Н ВАЛУЙСКИЙ, С БИРЮЧ, УЛ ГАГАРИНА, Д 28"))
-
-
-
-def get_street(string):
-    # получает из строки улицу
-    if string is None:
-        return None
-    else:
-        string = str(string).strip()
-        if get_reverse_neiroset(string, model=model_street_reverse, tokenizer=tokenizer_street_reverse) == "вначале":
-            levels = [r"УЛ\.[ ]{0,1}[А-Яа-я -]+?(?=,|$)",  # ищет от УЛ. до запятой
-                      r"УЛ\.[ ]{0,1}\d{0,2}[А-Яа-я -]+?(?=,|$)",  # ищет от УЛ. до запятой с цифрами в названии
-                      r"\sУЛИЦА\s[А-Яа-я -]+?(?=,|$)",
-                      r"\sУЛИЦА\s\d{0,2}[А-Яа-я -]+?(?=,|$)",
-                      r"ПЕР\.[ ]{0,1}[А-Яа-я -]+?(?=,|$)",  # ищет от ПЕР. до запятой
-                      r"ПЕР\.[ ]{0,1}\d{0,2}[А-Яа-я -]+?(?=,|$)",  # ищет от ПЕР. до запятой с цифрами в названии
-                      ]
-            for pattern in levels:
-                match = re.findall(pattern, string, flags=re.IGNORECASE)
-                if len(match) == 1:
-                    return losk(match[0])
-
-        else:
-            levels = [r"(?<=\,)[ ]{0,1}[А-Яа-я -]+ УЛ\.",
-                      r"(?<=\.)[ ]{0,1}[А-Яа-я -]+ УЛ\.",
-                      r"(?<=\,)[ ]{0,1}[А-Яа-я -]+ УЛ\s",
-                      r"(?<=\.)[ ]{0,1}[А-Яа-я -]+ УЛ\s",
-            #
-            #           r"УЛ\.[ ]{0,1}[А-Яа-я -]+?(?=,|$)",  # ищет от УЛ. до запятой
-            #           r"УЛ\.[ ]{0,1}\d{0,2}[А-Яа-я -]+?(?=,|$)",  # ищет от УЛ. до запятой с цифрами в названии
-            #           r"\sУЛИЦА\s[А-Яа-я -]+?(?=,|$)",
-            #           r"\sУЛИЦА\s\d{0,2}[А-Яа-я -]+?(?=,|$)",
-            #           r"ПЕР\.[ ]{0,1}[А-Яа-я -]+?(?=,|$)",  # ищет от ПЕР. до запятой
-            #           r"ПЕР\.[ ]{0,1}\d{0,2}[А-Яа-я -]+?(?=,|$)",  # ищет от ПЕР. до запятой с цифрами в названии
-                      ]
-            for pattern in levels:
-                match = re.findall(pattern, string, flags=re.IGNORECASE)
-                if len(match) == 1:
-                    return losk(match[0])
-
-# =================================== парсинг НОВЫЙ ПОДХОД ===============================
-
-def get_in_postgreSQL(name_table):
-    import psycopg2
-    from io import StringIO
-
-    # для PostgreSQL
-    user = 'data'
-    port = 5432
-    password = 'User123!@#'
-    host = "10.100.33.6"
-    database = 'sc_data'
-
-    # Подключение к базе данных
-    conn = psycopg2.connect(
-        dbname=database,
-        user=user,
-        password=password,
-        host=host,
-        port=port
-    )
-
-    # Создание курсора
-    cur = conn.cursor()
-
-
-    #Выполнение SQL-запроса
-    cur.execute(f'SELECT * FROM {name_table}')
-
-    #Получение результатов
-    result = cur.fetchall()
-    result = pd.DataFrame(result)
-    # Закрытие курсора и соединения
-    cur.close()
-    conn.close()
-    return result
-
-spravochnik_street = get_in_postgreSQL("public.spravochnik_street")
-spravochnik_street.columns = ['mo', 'nas_punkt', 'street', 'nas_punkt_suffix', 'street_suffix']
-# spravochnik_street = spravochnik_street.apply(lambda x: x.astype(str).str.upper())
-# spravochnik_street["nas_punkt_cleen"] = spravochnik_street["nas_punkt"].apply(lambda x: x.rsplit(maxsplit=1)[0])
-
-# ============================================ НАСЕЛЕННЫЕ ПУНКТЫ =======================================
-def get_nas_punkt_new(string, mo):
-    '''
-    Определяет населенный пункт с помощью справочника
-    '''
-
-    if (mo is None) | (string is None):
-        return None
-    else:
-        mo = str(mo).upper()
-        # print(mo)
-        string = str(string).upper()
-        if mo != "БЕЛГОРОД":
-            end_index = string.find(mo) + len(mo)
-            string = string[end_index :]
-        # print(string)
-        nas_punkt_list = []
-        patterns = spravochnik_street
-        nas_punkt = patterns.loc[(patterns["mo"] == mo)][["nas_punkt", "nas_punkt_suffix"]]
-        nas_punkt = nas_punkt.drop_duplicates()
-        # print(nas_punkt)
-        for nas, suffix in zip(nas_punkt["nas_punkt"], nas_punkt["nas_punkt_suffix"]):
-            # print(nas.rsplit(maxsplit=1)[0])
-            match = re.search(nas, string, re.IGNORECASE)
-            if match:
-                nas_punkt_list.append([suffix, nas])
-
-        # print(nas_punkt_list)
-        if len(nas_punkt_list) == 1:
-            res = nas_punkt_list[0]
-            return ". ".join(res)
-        elif len(nas_punkt_list) > 1:
-            for item in nas_punkt_list:
-                suffix = item[0]
-                # print(suffix)
-                match_suffix = re.search(fr'''(\s|,){suffix}(\s|\.)''', string, re.IGNORECASE)
-                if match_suffix:
-                    return ". ".join([suffix, item[1]])
-
-
-# ===================================== УЛИЦЫ ====================================================
-def get_street_new(string, mo, nas_punkt):
-    '''
-    Определяет улицу с помощью справочника
-    '''
-
-    if (mo is None) | (nas_punkt is None) | (string is None):
-        return None
-    else:
-        mo = str(mo).upper()
-        nas_punkt = str(nas_punkt).upper()
-        nas_punkt = nas_punkt.split(maxsplit=1)[1]
-        # print(nas_punkt)
-        string = str(string).upper()
-
-        end_index = string.find(nas_punkt) + len(nas_punkt)
-        string = string[end_index :]
-
-        street_list = []
-        patterns = spravochnik_street
-        streets = patterns.loc[(patterns["mo"] == mo) & (patterns["nas_punkt"] == nas_punkt)][["street", "street_suffix"]]
-        streets = streets.drop_duplicates()
-        for street, suffix in zip(streets["street"], streets["street_suffix"]):
-            # print(pat)
-            match = re.search(street, string, re.IGNORECASE)
-            match_suffix = re.search(fr'''(\s|,){suffix}(\s|\.)''', string, re.IGNORECASE)
-            if match:
-                if match_suffix:
-                    street_list.append([suffix, street])
-
-        # print(street_list)
-        if len(street_list) == 1:
-            res = street_list[0]
-            return ". ".join(res)
-        elif len(street_list) > 1:
-            for item in street_list:
-                suffix = item[0]
-                # print(suffix)
-                match_suffix = re.search(fr'''(\s|,){suffix}(\s|\.)''', string, re.IGNORECASE)
-                if match_suffix:
-                    return ". ".join([suffix, item[1]])
-
-
-# =================================================== ДОМА ===================================
-
-def get_home_new(string, street):
-    '''
-        Определяет дом с помощью регулярного выражения
-    '''
-
-    if (string is None) | (street is None):
-        return None
-    else:
-        string = str(string).upper()
-        street = street.split(maxsplit=1)[1]
-        end_index = string.find(street) + len(street)
-        string = string[end_index:]
-        # print(string)
-
-        levels = [
-                    r"\d+[А-я0-9/-]{0,5}(?=,|\s|$)"
-                  ]
-        for pattern in levels:
-            match = re.search(pattern, string, flags=re.IGNORECASE)
-            # print(match)
-            if match:
-                # print(match[0])
-                return match.group().strip()
-
-
-# ========================================== КВАРТИРА ===================================================
-def get_kvartira_new(string, street):
-    '''
-        Определяет дом с помощью регулярного выражения
-    '''
-
-    if (string is None) | (street is None):
-        return None
-    else:
-        string = str(string).upper()
-        street = street.split(maxsplit=1)[1]
-        end_index = string.find(street) + len(street)
-        string = string[end_index:]
-        # print(string)
-
-        levels = [
-                    r"(?<=КВ\.|КВ )[ ]{0,1}\d+[А-я0-9/-]{0,5}(?=,|\s|$)"
-                  ]
-        for pattern in levels:
-            match = re.search(pattern, string, flags=re.IGNORECASE)
-            # print(match)
-            if match:
-                # print(match[0])
-                return match.group().strip()
-
-
-
-
-# =======================================================================================================
-def get_home(string):
-    # получает из строки номер дома
-    if string is None:
-        return None
-    else:
-        string = str(string).strip()
-        levels = [r"(?<=Д\.|Д\s)[ ]{0,1}\d{1,3}[А-Яа-я/]{0,1}\d{0,3}?(?=,|\s|$)",
-                  # ищет от Д. до запятой либо пробела либо конца строки
-                  r"(?<=ДОМ\s)[ ]{0,1}\d{1,3}[А-Яа-я/]{0,1}\d{0,3}?(?=,|\s|$)",
-                  # то же самое, только со слешем между цифрами
-                  ]
-        for pattern in levels:
-            match = re.findall(pattern, string, flags=re.IGNORECASE)
-            if len(match) == 1:
-                return match[0].strip()
-                break
-
-
-# print(get_home("БЕЛГОРОДСКАЯ ОБЛАСТЬ, Р-Н БЕЛГОРОДСКИЙ, СТАНЦИЯ СТАРАЯ НАУМОВКА, Д. 1"))
-def get_kvartira(string):
-    # получает из строки номер квартиры
-    if string is None:
-        return None
-    else:
-        string = str(string).strip()
-        levels = [r"(?<=КВ\.)[ ]{0,1}\d{1,3}[А-я]{0,1}?(?=[,. ])",  # ищет от КВ. до запятой, точки или пробела
-                  r"(?<=КВ\.)[ ]{0,1}\d{1,3}[А-Яа-я]{0,1}?$",  # ищет от КВ. до конца строки
-
-                  r"(?<=КВ\.|КВ )[ ]{0,1}\d+[А-я0-9/-]{0,5}(?=,|\s|$)"
-                  ]
-        for pattern in levels:
-            match = re.findall(pattern, string, flags=re.IGNORECASE)
-            if len(match) == 1:
-                return match[0].strip()
-                break
-
-
-def get_comment(string):
-    # получает из строки комментарий вконце
-    if string is None:
-        return None
-    else:
-        string = str(string).strip()
-        levels = [r"\(.+\)$",  # ищет круглые скобки вконце и их содержимое
-                  r"[A-Z].+$",  # ищет от английский букв до конца строки
-                  ]
-        for pattern in levels:
-            match = re.findall(pattern, string, flags=re.IGNORECASE)
-            if len(match) == 1:
-                return match[0].strip(r"[ ()]")
-                break
-
-
-# ========================================= МУНИЦИПАЛИТЕТЫ ======================================
+# ========================================= МУНИЦИПАЛИТЕТ ======================================
 def get_mo_re(string, neiro=0):
     '''
     Определяет муниципалитет с помощью регулярных выражений
@@ -521,6 +178,200 @@ def get_mo_re(string, neiro=0):
             res = get_mo_neiroset(string)
             return res
 
+# =================================== парсинг НОВЫЙ ПОДХОД ===============================
+# загружаем справочник из БД
+def get_in_postgreSQL(name_table):
+    import psycopg2
+    from io import StringIO
+
+    # для PostgreSQL
+    user = 'data'
+    port = 5432
+    password = 'User123!@#'
+    host = "10.100.33.6"
+    database = 'sc_data'
+
+    # Подключение к базе данных
+    conn = psycopg2.connect(
+        dbname=database,
+        user=user,
+        password=password,
+        host=host,
+        port=port
+    )
+
+    # Создание курсора
+    cur = conn.cursor()
+
+
+    #Выполнение SQL-запроса
+    cur.execute(f'SELECT * FROM {name_table}')
+
+    #Получение результатов
+    result = cur.fetchall()
+    result = pd.DataFrame(result)
+    # Закрытие курсора и соединения
+    cur.close()
+    conn.close()
+    return result
+
+spravochnik_street = get_in_postgreSQL("public.spravochnik_street")
+spravochnik_street.columns = ['mo', 'nas_punkt', 'street', 'nas_punkt_suffix', 'street_suffix']
+
+
+# ============================================ НАСЕЛЕННЫЙ ПУНКТ =======================================
+def get_nas_punkt_new(string, mo):
+    '''
+    Определяет населенный пункт с помощью справочника
+    '''
+
+    if (mo is None) | (string is None):
+        return None
+    else:
+        mo = str(mo).upper()
+        # print(mo)
+        string = str(string).upper()
+        if mo != "БЕЛГОРОД":
+            end_index = string.find(mo) + len(mo)
+            string = string[end_index :]
+        # print(string)
+        nas_punkt_list = []
+        patterns = spravochnik_street
+        nas_punkt = patterns.loc[(patterns["mo"] == mo)][["nas_punkt", "nas_punkt_suffix"]]
+        nas_punkt = nas_punkt.drop_duplicates()
+        # print(nas_punkt)
+        for nas, suffix in zip(nas_punkt["nas_punkt"], nas_punkt["nas_punkt_suffix"]):
+            # print(nas.rsplit(maxsplit=1)[0])
+            match = re.search(nas, string, re.IGNORECASE)
+            if match:
+                nas_punkt_list.append([suffix, nas])
+
+        # print(nas_punkt_list)
+        if len(nas_punkt_list) == 1:
+            res = nas_punkt_list[0]
+            return ". ".join(res)
+        elif len(nas_punkt_list) > 1:
+            for item in nas_punkt_list:
+                suffix = item[0]
+                # print(suffix)
+                match_suffix = re.search(fr'''(\s|,){suffix}(\s|\.)''', string, re.IGNORECASE)
+                if match_suffix:
+                    return ". ".join([suffix, item[1]])
+
+
+# ===================================== УЛИЦА ====================================================
+def get_street_new(string, mo, nas_punkt):
+    '''
+    Определяет улицу с помощью справочника
+    '''
+
+    if (mo is None) | (nas_punkt is None) | (string is None):
+        return None
+    else:
+        mo = str(mo).upper()
+        nas_punkt = str(nas_punkt).upper()
+        nas_punkt = nas_punkt.split(maxsplit=1)[1]
+        # print(nas_punkt)
+        string = str(string).upper()
+
+        end_index = string.find(nas_punkt) + len(nas_punkt)
+        string = string[end_index :]
+
+        street_list = []
+        patterns = spravochnik_street
+        streets = patterns.loc[(patterns["mo"] == mo) & (patterns["nas_punkt"] == nas_punkt)][["street", "street_suffix"]]
+        streets = streets.drop_duplicates()
+        for street, suffix in zip(streets["street"], streets["street_suffix"]):
+            # print(pat)
+            match = re.search(street, string, re.IGNORECASE)
+            match_suffix = re.search(fr'''(\s|,){suffix}(\s|\.)''', string, re.IGNORECASE)
+            if match:
+                if match_suffix:
+                    street_list.append([suffix, street])
+
+        # print(street_list)
+        if len(street_list) == 1:
+            res = street_list[0]
+            return ". ".join(res)
+        elif len(street_list) > 1:
+            for item in street_list:
+                suffix = item[0]
+                # print(suffix)
+                match_suffix = re.search(fr'''(\s|,){suffix}(\s|\.)''', string, re.IGNORECASE)
+                if match_suffix:
+                    return ". ".join([suffix, item[1]])
+
+
+# =================================================== ДОМ ===================================
+
+def get_home_new(string, street):
+    '''
+        Определяет дом с помощью регулярного выражения
+    '''
+
+    if (string is None) | (street is None):
+        return None
+    else:
+        string = str(string).upper()
+        street = street.split(maxsplit=1)[1]
+        end_index = string.find(street) + len(street)
+        string = string[end_index:]
+        # print(string)
+
+        levels = [
+                    r"\d+[А-я0-9/-]{0,5}(?=,|\s|$)"
+                  ]
+        for pattern in levels:
+            match = re.search(pattern, string, flags=re.IGNORECASE)
+            # print(match)
+            if match:
+                # print(match[0])
+                return match.group().strip()
+
+
+# ========================================== КВАРТИРА ===================================================
+def get_kvartira_new(string, street):
+    '''
+        Определяет дом с помощью регулярного выражения
+    '''
+
+    if (string is None) | (street is None):
+        return None
+    else:
+        string = str(string).upper()
+        street = street.split(maxsplit=1)[1]
+        end_index = string.find(street) + len(street)
+        string = string[end_index:]
+        # print(string)
+
+        levels = [
+                    r"(?<=КВ\.|КВ )[ ]{0,1}\d+[А-я0-9/-]{0,5}(?=,|\s|$)"
+                  ]
+        for pattern in levels:
+            match = re.search(pattern, string, flags=re.IGNORECASE)
+            # print(match)
+            if match:
+                # print(match[0])
+                return match.group().strip()
+
+
+# =======================================================================================================
+
+def get_comment(string):
+    # получает из строки комментарий вконце
+    if string is None:
+        return None
+    else:
+        string = str(string).strip()
+        levels = [r"\(.+\)$",  # ищет круглые скобки вконце и их содержимое
+                  r"[A-Z].+$",  # ищет от английский букв до конца строки
+                  ]
+        for pattern in levels:
+            match = re.findall(pattern, string, flags=re.IGNORECASE)
+            if len(match) == 1:
+                return match[0].strip(r"[ ()]")
+                break
+
 
 # ================================= нейросеть =============================================
 
@@ -582,44 +433,6 @@ def get_mo_neiroset(string):
 # ====================================================================================================
 
 
-# загружаем модель которая определяет с какой стороны стоит тип населенного пункта
-model_reverse_path = r"C:\Users\svetlichnyy_av\PycharmProjects\parse_address\revers_neiroset\обученная модель\rubert-tiny-sentiment-balanced"
-model_reverse = AutoModelForSequenceClassification.from_pretrained(model_reverse_path)
-tokenizer_reverse = AutoTokenizer.from_pretrained(model_reverse_path)
-
-
-# загружаем модель которая определяет с какой стороны стоит тип улицы
-model_street_reverse_path = r"C:\Users\svetlichnyy_av\PycharmProjects\parse_address\revers_neiroset\обученная модель\street"
-model_street_reverse = AutoModelForSequenceClassification.from_pretrained(model_reverse_path)
-tokenizer_street_reverse = AutoTokenizer.from_pretrained(model_reverse_path)
-
-
-def get_reverse_neiroset(text, model, tokenizer):
-    '''
-      принимает текст с адресом,
-      возвращает с какой стороны стоит тип населенного пункта
-      '''
-
-    cl = [
-          'вначале',
-          'вконце'
-          ]
-
-    text = text.lower().strip()
-
-    # токенизация текста
-    tokenized_text = tokenizer(text, truncation=True, padding=True, return_tensors="pt", max_length=14)
-
-    # Применение модели
-    outputs = model(**tokenized_text)
-
-    # Обработка результатов
-    predictions = outputs.logits.argmax(dim=1)
-    name_label = cl[predictions]
-
-    return name_label
-
-# ===================================================================================================
 
 
 
