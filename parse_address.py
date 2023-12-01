@@ -24,12 +24,11 @@ def parse_address(df, from_col, neiro=0):
     print(f"Время выполнения: {execution_time} мин.")
     return df
 
-
 # ====================================================================================
 
 def main_func(row):
     nas_punkt = get_nas_punkt_new(row["Адрес"], row["Муниципалитет"])
-    street = get_street_new(row["Адрес"], row["Муниципалитет"], nas_punkt)
+    street = get_street_new_opt(row["Адрес"], row["Муниципалитет"], nas_punkt)
     home = get_home_new(row["Адрес"], street)
     kvartira = get_kvartira_new(row["Адрес"], street)
     return (nas_punkt, street, home, kvartira)
@@ -309,6 +308,56 @@ def get_street_new(string, mo, nas_punkt):
         #         match_suffix = re.search(fr'''(\s|,){suffix}(\s|\.)''', string, re.IGNORECASE)
         #         if match_suffix:
         #             return ". ".join([suffix, item[1]])
+
+# ============================================== оптимизация ===================================
+def get_street_new_opt(string, mo, nas_punkt):
+    '''
+    Определяет улицу с помощью справочника
+    '''
+
+    if (mo is None) | (nas_punkt is None) | (string is None):
+        return None
+    else:
+        mo = mo.upper()
+        nas_punkt = nas_punkt.upper()
+        nas_punkt = nas_punkt.split(maxsplit=1)[1]
+
+        string = string.upper()
+
+        end_index = string.find(nas_punkt) + len(nas_punkt)
+        string = string[end_index:]
+        # print(string)
+        suffix = None
+        street_list = []
+        patterns = spravochnik_street
+        streets = spravochnik_street\
+        .loc[(spravochnik_street["mo"] == mo) & (spravochnik_street["nas_punkt"] == nas_punkt)][["street", "street_suffix"]]
+        suffix_series = streets["street_suffix"].unique()
+        for suf in suffix_series:
+            match_suffix = re.search(fr'''(\s|,){suf}(\s|\.|,)''', string, re.IGNORECASE)
+            if match_suffix:
+                suffix = suf
+        # print(f"suffix: {suffix}")
+        if suffix is None:
+            for street, suffix in zip(streets["street"], streets["street_suffix"]):
+                # print(pat)
+                match = re.search(street, string, re.IGNORECASE)
+                if match:
+                    street_list.append([suffix, street])
+            # print(street_list)
+            if len(street_list) == 1:
+                res = street_list[0]
+                return ". ".join(res)
+
+        else:
+            streets_suf = streets.loc[streets["street_suffix"] == suffix]["street"].unique()
+            n = 0
+            for street in streets_suf:
+                # print(pat)
+                match = re.search(street, string, re.IGNORECASE)
+                if match:
+                    return ". ".join([suffix, street])
+
 
 
 # =================================================== ДОМ ===================================
