@@ -172,15 +172,18 @@ def get_mo_re(string, neiro=0):
         # print(mo)
         if len(mo) == 1:
             mo_id = mo[0]
-            return mo_list[mo_id]
+            res = mo_list[mo_id]
+            return res.upper()
         elif (len(mo) > 1) and (neiro == 1):  # если нашло больше одного, применяем нейросеть
             string = str(string.lower())
             res = get_mo_neiroset(string)
-            return res
+            return res.upper()
         elif neiro == 2:  # если вообще не нашло, применяем нейросеть
             string = str(string.lower())
             res = get_mo_neiroset(string)
-            return res
+            return res.upper()
+        else:
+            return get_mo_spr(string) # попытка определить муниципалитет по справочнику
 
 
 # =================================== парсинг НОВЫЙ ПОДХОД ===============================
@@ -222,6 +225,39 @@ def get_in_postgreSQL(name_table):
 
 spravochnik_street = get_in_postgreSQL("public.spravochnik_street")
 spravochnik_street.columns = ['mo', 'nas_punkt', 'street', 'nas_punkt_suffix', 'street_suffix']
+
+# ============================================ МУНИЦИПАЛИТЕТ ==========================================
+
+def get_mo_spr(string):
+    '''
+    Определяет муниципалитет с помощью справочника
+    '''
+
+    if (string is None):
+        return None
+    else:
+
+        string = str(string).upper()
+        # print(string)
+
+        mo_list = []
+
+        spr = spravochnik_street
+        spr = spr.drop_duplicates(subset=["mo", "nas_punkt"])
+        # print(nas_punkt)
+        for mo, nas in zip(spr["mo"], spr["nas_punkt"]):
+            # print(nas.rsplit(maxsplit=1)[0])
+            match = re.search(fr"{nas}(?=,|\s|$)", string, re.IGNORECASE)
+            if match:
+                # print(nas)
+                mo_list.append(mo)
+
+        mo_list = set(mo_list)
+        # print(mo_list)
+        if len(mo_list) == 1:
+            res = list(mo_list)[0]
+            return res
+
 
 
 # ============================================ НАСЕЛЕННЫЙ ПУНКТ =======================================
