@@ -5,9 +5,11 @@ import re
 import matplotlib.pyplot as plt
 import time
 
+mo_norm = pd.read_excel(r"C:\Users\svetlichnyy_av\PycharmProjects\parse_address\муниципалитеты.xlsx")
+
 
 # ================================= ОСНОВНАЯ ФУНКЦИЯ ======================================
-def parse_address(df, from_col, neiro=0):
+def parse_address(df, from_col, neiro=0, add_mo_norm=False):
     # основная функция, которая создает нужные колонки и парсит в них адрес
     start_time = time.time()
     df = df.copy()
@@ -15,11 +17,14 @@ def parse_address(df, from_col, neiro=0):
     df["Муниципалитет"] = df["Адрес"].apply(get_mo_re, neiro=neiro)
     df[["Населенный пункт", "Улица", "Дом", "Квартира"]] = df.apply(main_func, axis=1, result_type='expand')
 
-    report = df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]].notna().sum() / df.shape[
-        0] * 100
+    report = round(df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]].notna().sum() / df.shape[
+        0] * 100, 2)
     print(report)
     df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]].notna().sum().plot(kind="barh",
                                                                                                       figsize=(3, 2))
+    if add_mo_norm:
+        df = df.merge(mo_norm, how="left", on="Муниципалитет")
+
     end_time = time.time()
     execution_time = (end_time - start_time) / 60
     print(f"Время выполнения: {execution_time} мин.")
@@ -173,17 +178,22 @@ def get_mo_re(string, neiro=0):
         if len(mo) == 1:
             mo_id = mo[0]
             res = mo_list[mo_id]
-            return res.upper()
+            # print("1")
+            return res
         elif (len(mo) > 1) and (neiro == 1):  # если нашло больше одного, применяем нейросеть
             string = str(string.lower())
             res = get_mo_neiroset(string)
-            return res.upper()
+            # print("2")
+            return res
         elif neiro == 2:  # если вообще не нашло, применяем нейросеть
             string = str(string.lower())
             res = get_mo_neiroset(string)
-            return res.upper()
+            # print("3")
+            return res
         else:
-            return get_mo_spr(string) # попытка определить муниципалитет по справочнику
+            match = re.search("Белгородская", string, re.IGNORECASE)
+            if match:
+                return get_mo_spr(string) # попытка определить муниципалитет по справочнику
 
 
 # =================================== парсинг НОВЫЙ ПОДХОД ===============================
@@ -247,7 +257,7 @@ def get_mo_spr(string):
         # print(nas_punkt)
         for mo, nas in zip(spr["mo"], spr["nas_punkt"]):
             # print(nas.rsplit(maxsplit=1)[0])
-            match = re.search(fr"{nas}(?=,|\s|$)", string, re.IGNORECASE)
+            match = re.search(fr"(\s|,|\.|^){nas}(\s|,|$|\.)", string, re.IGNORECASE)
             if match:
                 # print(nas)
                 mo_list.append(mo)
@@ -282,8 +292,8 @@ def get_nas_punkt_new(string, mo):
         nas_punkt = nas_punkt.drop_duplicates()
         # print(nas_punkt)
         for nas, suffix in zip(nas_punkt["nas_punkt"], nas_punkt["nas_punkt_suffix"]):
-            # print(nas.rsplit(maxsplit=1)[0])
-            match = re.search(nas, string, re.IGNORECASE)
+            # print(nas)
+            match = re.search(fr"(\s|,|\.|^){nas}(\s|,|$|\.)", string, re.IGNORECASE)
             if match:
                 nas_punkt_list.append([suffix, nas])
 
@@ -292,12 +302,15 @@ def get_nas_punkt_new(string, mo):
             res = nas_punkt_list[0]
             return ". ".join(res)
         elif len(nas_punkt_list) > 1:
-            for item in nas_punkt_list:
-                suffix = item[0]
-                # print(suffix)
-                match_suffix = re.search(fr'''(\s|,){suffix}(\s|\.)''', string, re.IGNORECASE)
-                if match_suffix:
-                    return ". ".join([suffix, item[1]])
+            set_suffix = set([i[0] for i in nas_punkt_list])
+            # print(set_suffix)
+            if len(set_suffix) > 1:
+                for item in nas_punkt_list:
+                    suffix = item[0]
+                    # print(suffix)
+                    match_suffix = re.search(fr'''(\s|,){suffix}(\s|\.)''', string, re.IGNORECASE)
+                    if match_suffix:
+                        return ". ".join([suffix, item[1]])
 
 
 # ===================================== УЛИЦА ====================================================
