@@ -17,18 +17,33 @@ def parse_address(df, from_col, neiro=0, add_mo_norm=False):
     df["Муниципалитет"] = df["Адрес"].apply(get_mo_re, neiro=neiro)
     df[["Населенный пункт", "Улица", "Дом", "Квартира"]] = df.apply(main_func, axis=1, result_type='expand')
 
-    report = round(df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]].notna().sum() / df.shape[
+    # =================================== отчет ===============================================
+
+    report_proc = round(df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]].notna().sum() / df.shape[
         0] * 100, 2)
+    report_abs = df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]].notna().sum()
+    report = pd.concat([report_abs, report_proc.to_frame()], axis=1)
+    report.columns = ["количество", "процент"]
     print(report)
-    df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]].notna().sum().plot(kind="barh",
-                                                                                                      figsize=(3, 2))
+
+    # ==================================== график =============================================
+
+    df[["Адрес", "Муниципалитет", "Населенный пункт", "Улица", "Дом", "Квартира"]]\
+                                    .notna().sum().plot(kind="barh", figsize=(3, 2))
+
+    # ================== добавление нормализованного муниципалитета ==========================
+
     if add_mo_norm:
         df = df.merge(mo_norm, how="left", on="Муниципалитет")
 
+    # ============================ время выполнения ==========================================
+
     end_time = time.time()
     execution_time = (end_time - start_time) / 60
-    print(f"Время выполнения: {execution_time} мин.")
+    print(f"\nВремя выполнения: {execution_time} мин.")
     return df
+
+
 
 # ====================================================================================
 
@@ -116,8 +131,8 @@ def get_mo_re(string, neiro=0):
     else:
         string = str(string)
         mo = []
-        patterns = {1: ['Алексеевский', 'Алексеевского', r'(г. |г.|г )Алексеевка'],
-                    2: ['город Белгород', r'(\s|^|\.)Белгород(?:,|\s|$)'],
+        patterns = {1: ['Алексеевский', 'Алексеевского', r'(г. |г.|г |ГОРОД |ГОР )Алексеевка'],
+                    2: ['город Белгород', r'(\s|^|\.|,)Белгород(?:,|\s|$)'],
                     3: [r'Белгородский[ ,]', 'Дубовое', ' Майский', "Северный",
                         "Таврово", "Новосадовый", "Политотдельский"],
                     4: ['Борисовский', 'Борисовка', 'Борисовского'],
@@ -251,7 +266,7 @@ def get_mo_spr(string):
         # print(string)
 
         mo_list = []
-
+        nas_list = []
         spr = spravochnik_street
         spr = spr.drop_duplicates(subset=["mo", "nas_punkt"])
         # print(nas_punkt)
@@ -260,14 +275,23 @@ def get_mo_spr(string):
             match = re.search(fr"(\s|,|\.|^){nas}(\s|,|$|\.)", string, re.IGNORECASE)
             if match:
                 # print(nas)
+                nas_list.append(nas)
                 mo_list.append(mo)
 
         mo_list = set(mo_list)
-        # print(mo_list)
+        print(mo_list)
         if len(mo_list) == 1:
             res = list(mo_list)[0]
             return res
-
+        else:
+            mo_nas_list = []
+            for m in mo_list:
+                for n in set(nas_list):
+                    if get_street_new(string, m, n) is not None:
+                        mo_nas_list.append(m)
+            if len(mo_nas_list) == 1:
+                res = mo_nas_list[0]
+                return res
 
 
 # ============================================ НАСЕЛЕННЫЙ ПУНКТ =======================================
