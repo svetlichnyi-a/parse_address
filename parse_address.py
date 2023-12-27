@@ -491,27 +491,26 @@ def get_street_new_opt(in_string, mo, nas_punkt):
                 res = street_list[0]
                 return ". ".join(res)
 
-        elif len(suf_list) == 1:  # если нашелся один суффикс
+        elif len(suf_list) > 0:  # если нашлось больше 0
             # print("нашелся один суффикс " + suf_list[0])
-            suffix = suf_list[0]
-            streets_suf = streets.loc[streets["street_suffix"] == suffix]["street"].unique()
-            n = 0
-            for street in streets_suf:
-                # print(pat)
-                match = re.search(fr"(\(|\s|,|\.|^){street}(\s|,|$|\.|\))", string, re.IGNORECASE)
-                if match:
-                    return ". ".join([suffix, street])
-                else:
-                    if (" " in street) and ("-" in street):
-                        street_revers = street.split(" ", 1)
-                        street_revers = " ".join([street_revers[1], street_revers[0]])
-                        match = re.search(fr"(\(|\s|,|\.|^){street_revers}(\s|,|$|\.|\))", string, re.IGNORECASE)
-                        if match:
-                            return ". ".join([suffix, street])
+            for suffix in suf_list:
+                # suffix = suf_list[0]
+                streets_suf = streets.loc[streets["street_suffix"] == suffix]["street"].unique()
+                n = 0
+                for street in streets_suf:
+                    # print(pat)
+                    match = re.search(fr"(\(|\s|,|\.|^){street}(\s|,|$|\.|\))", string, re.IGNORECASE)
+                    if match:
+                        return ". ".join([suffix, street])
+                    else:
+                        if (" " in street) and ("-" in street):
+                            street_revers = street.split(" ", 1)
+                            street_revers = " ".join([street_revers[1], street_revers[0]])
+                            match = re.search(fr"(\(|\s|,|\.|^){street_revers}(\s|,|$|\.|\))", string, re.IGNORECASE)
+                            if match:
+                                return ". ".join([suffix, street])
 
-        elif len(suf_list) > 1: # если нашлось несколько суффиксов
-            print(f"нашлось {len(suf_list)} суффиксов " )
-            print(suf_list[0], suf_list[1])
+
 
 
 def if_mkr(in_string, mo, type, pref, nas_punkt):
