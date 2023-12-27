@@ -251,31 +251,10 @@ def get_in_postgreSQL(name_table):
 spravochnik_street = get_in_postgreSQL("public.spravochnik_street")
 spravochnik_street.columns = ['mo', 'nas_punkt', 'street', 'nas_punkt_suffix', 'street_suffix']
 
+
 # ========================================= ЗАГРУЖАЕМ ГАР =============================================
 
-g = pd.read_xml(
-    r"C:\Users\svetlichnyy_av\PycharmProjects\parse_address\31\AS_ADDR_OBJ_20231221_32daf5da-2a85-4c7c-9bf4-f8823e7e204b.XML")
-m = pd.read_xml(
-    r"C:\Users\svetlichnyy_av\PycharmProjects\parse_address\31\AS_MUN_HIERARCHY_20231221_c6f5062c-aac5-4343-9bd4-d2079ddc0916.XML")
-
-mo_id = [95239533, 95239536, 95239534, 95239328, 95239535, 95239532, 95239539,
-         95239538, 95239537, 95239531, 95239353, 95239407, 95239475, 95239382,
-         95239499, 95239431, 95239461, 95239369, 95239514, 95239337, 95239450,
-         95239486]
-
-m = m.loc[m.ISACTIVE == 1]
-g = g.loc[g.ISACTIVE == 1]
-df = g.merge(m[["OBJECTID", "PATH"]], how="left", on="OBJECTID")
-df[[0, 1, 2, 3, 4, 5]] = df.PATH.str.split(".", expand=True)
-
-spr_mo = df.loc[df.OBJECTID.isin(mo_id)][["OBJECTID", "NAME"]]
-spr_mo.NAME = spr_mo.NAME.str.upper()
-spr_mo.loc[spr_mo.NAME == 'ГОРОД БЕЛГОРОД', "NAME"] = "БЕЛГОРОД"
-spr_mo = spr_mo.rename(columns={"NAME": "MO"})
-df = df.merge(spr_mo, how="left", on="OBJECTID")
-df.NAME = df.NAME.str.upper()
-df.TYPENAME = df.TYPENAME.str.upper()
-
+gar = pd.read_excel(r"C:\Users\svetlichnyy_av\PycharmProjects\parse_address\gar.xlsx")
 
 # ============================================ МУНИЦИПАЛИТЕТ ==========================================
 
@@ -444,77 +423,39 @@ def suffix_spr(suffix):
 
 
 # ===================================== УЛИЦА ====================================================
-# def get_street_new(string, mo, nas_punkt):
-#     '''
-#     Определяет улицу с помощью справочника
-#     '''
-#
-#     if (mo is None) | (nas_punkt is None) | (string is None):
-#         return None
-#     else:
-#         mo = mo.upper()
-#         nas_punkt = nas_punkt.upper()
-#         nas_punkt = nas_punkt.split(maxsplit=1)[1]
-#         # print(nas_punkt)
-#         string = string.upper()
-#
-#         end_index = string.find(nas_punkt) + len(nas_punkt)
-#         string = string[end_index:]
-#
-#         street_list = []
-#         patterns = spravochnik_street
-#         streets = spravochnik_street \
-#             .loc[(spravochnik_street["mo"] == mo) & (spravochnik_street["nas_punkt"] == nas_punkt)][
-#             ["street", "street_suffix"]] \
-#             .drop_duplicates()
-#         for street, suffix in zip(streets["street"], streets["street_suffix"]):
-#             # print(pat)
-#             match = re.search(street, string, re.IGNORECASE)
-#             if match:
-#                 match_suffix = re.search(fr'''(\s|,){suffix}(\s|\.)''', string, re.IGNORECASE)
-#                 if match_suffix:
-#                     street_list.append([suffix, street])
-#                     break
-#             else:
-#                 if (" " in street) and ("-" in street):
-#                     street_revers = street.split(" ", 1)
-#                     street_revers = " ".join([street_revers[1], street_revers[0]])
-#                     match = re.search(street_revers, string, re.IGNORECASE)
-#                     if match:
-#                         match_suffix = re.search(fr'''(\s|,){suffix}(\s|\.)''', string, re.IGNORECASE)
-#                         if match_suffix:
-#                             street_list.append([suffix, street])
-#                             break
-#
-#
-#         # print(street_list)
-#         if len(street_list) == 1:
-#             res = street_list[0]
-#             return ". ".join(res)
-#
-#
 
-
-# ============================================== оптимизация ===================================
-def get_street_new_opt(string, mo, nas_punkt):
+def get_street_new_opt(in_string, mo, nas_punkt):
     '''
     Определяет улицу с помощью справочника
     '''
 
-    if (mo is None) | (nas_punkt is None) | (string is None):
+    if (mo is None) | (nas_punkt is None) | (in_string is None):
         return None
     else:
         mo = mo.upper()
         nas_punkt = nas_punkt.upper()
-        nas_punkt = nas_punkt.split(maxsplit=1)[1]
+        pref, nas_punkt = nas_punkt.split(maxsplit=1)
+        pref = pref.strip(".")
 
-        string = string.upper()
+        in_string = in_string.upper()
+
+        match_mkr = re.search(fr'''(\s|,){"МКР"}(\s|\.|,)''', in_string, re.IGNORECASE)
+        if match_mkr:
+            res = if_mkr(in_string, mo, "МКР", pref, nas_punkt)
+            return res
+
+        match_cnt = re.search(fr'''(\s|,){"СНТ"}(\s|\.|,)''', in_string, re.IGNORECASE)
+        if match_cnt:
+            res = if_mkr(in_string, mo, "СНТ", pref, nas_punkt)
+            return res
+
         # print(nas_punkt)
-        end_index = string.find(fr"{nas_punkt}") + len(nas_punkt)
-        string = string[end_index:]
+        end_index = in_string.find(fr"{nas_punkt}") + len(nas_punkt)
+        string = in_string[end_index:]
         # print(string)
         suffix = None
         street_list = []
+        suf_list = []
         patterns = spravochnik_street
         streets = spravochnik_street \
             .loc[(spravochnik_street["mo"] == mo) & (spravochnik_street["nas_punkt"] == nas_punkt)][
@@ -522,11 +463,15 @@ def get_street_new_opt(string, mo, nas_punkt):
         suffix_series = streets["street_suffix"].unique()
         # print(suffix_series)
         for suf in suffix_series:
+            # print(suf)
             match_suffix = re.search(fr'''(\s|,){suf}(\s|\.|,)''', string, re.IGNORECASE)
             if match_suffix:
-                suffix = suf
+                # suffix = suf
+                suf_list.append(suf)
+                # print(suffix)
         # print(f"suffix: {suffix}")
-        if suffix is None:  # если суффикс не нашелся
+        if len(suf_list) == 0:  # если суффикс не нашелся
+            # print("суффиксов не нашлось")
             for street, suffix in zip(streets["street"], streets["street_suffix"]):
                 # print(pat)
                 match = re.search(fr"(\(|\s|,|\.|^){street}(\s|,|$|\.|\))", string, re.IGNORECASE)
@@ -546,7 +491,9 @@ def get_street_new_opt(string, mo, nas_punkt):
                 res = street_list[0]
                 return ". ".join(res)
 
-        else:  # если нашелся суффикс
+        elif len(suf_list) == 1:  # если нашелся один суффикс
+            # print("нашелся один суффикс " + suf_list[0])
+            suffix = suf_list[0]
             streets_suf = streets.loc[streets["street_suffix"] == suffix]["street"].unique()
             n = 0
             for street in streets_suf:
@@ -561,6 +508,84 @@ def get_street_new_opt(string, mo, nas_punkt):
                         match = re.search(fr"(\(|\s|,|\.|^){street_revers}(\s|,|$|\.|\))", string, re.IGNORECASE)
                         if match:
                             return ". ".join([suffix, street])
+
+        elif len(suf_list) > 1: # если нашлось несколько суффиксов
+            print(f"нашлось {len(suf_list)} суффиксов " )
+            print(suf_list[0], suf_list[1])
+
+
+def if_mkr(in_string, mo, type, pref, nas_punkt):
+    # print("if_mkr")
+    end_index = in_string.find(fr"{mo}") + len(mo)
+    string = in_string[end_index:]
+    # print(string)
+    mk_list = []
+    st_list = []
+
+    type_list = []
+    if type == "МКР":
+        type_list = ["МКР", "МКР."]
+    elif type == "СНТ":
+        type_list = ["СНТ", "ТЕР. СНТ"]
+
+
+    suffix = None
+    match_suf = re.search(fr'''(\s|,){"УЛ"}(\s|\.|,)''', string, re.IGNORECASE)
+    if match_suf:
+        suffix = "УЛ"
+    else:
+        match_suf = re.search(fr'''(\s|,){"ПЕР"}(\s|\.|,)''', string, re.IGNORECASE)
+        if match_suf:
+            suffix = "ПЕР"
+
+    spr_mo = gar.loc[gar.MO.notnull()][["OBJECTID", "MO"]]
+    # print(mo)
+    mun_id = spr_mo.loc[spr_mo.MO == mo].OBJECTID
+    # print("mun_id", len(mun_id))
+    if len(mun_id) > 0:
+        mun_id = mun_id.values[0]
+    else:
+        return None
+
+    nsp_id = gar.loc[(gar.TYPENAME == pref) & (gar[1] == int(mun_id)) & (gar.NAME == str(nas_punkt))].OBJECTID
+    # print("nsp_id " + str(len(nsp_id)))
+    if len(nsp_id) > 0:
+        nsp_id = nsp_id.values[0]
+    else:
+        return None
+
+    for i in range(5):
+        mkr = gar.loc[(gar.TYPENAME.isin(type_list)) & (gar[1] == int(mun_id)) & (gar[i] == int(nsp_id))]
+        if len(mkr) > 0:
+            # print(mkr)
+            break
+
+    for id, mk in zip(mkr.OBJECTID, mkr.NAME):
+        # print(mk)
+        match = re.search(fr"(\(|\s|,|\.|^){mk}(\s|,|$|\.|\))", string, re.IGNORECASE)
+        if match:
+            mk_list.append([id, mk])
+    # print(mk_list)
+    if len(mk_list) > 0:
+        for mk_id, mk in mk_list:
+            if suffix is not None:
+
+                for i in range(5):
+                    street = gar.loc[(gar.TYPENAME == suffix) & (gar[i] == int(mk_id))]
+                    if len(street) > 0:
+                        # print(street)
+                        break
+                for id, st in zip(street.OBJECTID, street.NAME):
+                    # print(st)
+                    match = re.search(fr"(\(|\s|,|\.|^){st}(\s|,|$|\.|\))", string, re.IGNORECASE)
+                    if match:
+                        # print("сошлась улица")
+                        st_list.append([id, st])
+                # print(st_list)
+            if len(st_list) == 1:
+                return suffix + ". " + st_list[0][1]
+        else:
+            return type + ". " + mk_list[0][1]
 
 
 # =================================================== ДОМ ===================================
