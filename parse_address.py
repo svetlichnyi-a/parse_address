@@ -210,6 +210,64 @@ def get_mo_re(string, neiro=0):
             if match:
                 return get_mo_spr(string)  # попытка определить муниципалитет по справочнику
 
+# ============================================ МУНИЦИПАЛИТЕТ ПО СПРАВОЧНИКУ ==========================================
+
+def get_mo_spr(string):
+    '''
+    Определяет муниципалитет с помощью справочника
+    '''
+
+    mo_list = {'АЛЕКСЕЕВСКИЙ':'Алексеевский',
+               'БЕЛГОРОД': 'Белгород',
+               'БЕЛГОРОДСКИЙ РАЙОН': 'Белгородский район',
+               'БОРИСОВСКИЙ': 'Борисовский',
+               'ВАЛУЙСКИЙ': 'Валуйский',
+               'ВЕЙДЕЛЕВСКИЙ': 'Вейделевский',
+               'ВОЛОКОНОВСКИЙ': 'Волоконовский',
+               'ГРАЙВОРОНСКИЙ': 'Грайворонский',
+               'ГУБКИНСКИЙ': 'Губкинский',
+               'ИВНЯНСКИЙ': 'Ивнянский',
+               'КОРОЧАНСКИЙ': 'Корочанский',
+               'КРАСНЕНСКИЙ': 'Красненский',
+               'КРАСНОЯРУЖСКИЙ': 'Краснояружский',
+               'КРАСНОГВАРДЕЙСКИЙ': 'Красногвардейский',
+               'НОВООСКОЛЬСКИЙ': 'Новооскольский',
+               'ПРОХОРОВСКИЙ': 'Прохоровский',
+               'РАКИТЯНСКИЙ': 'Ракитянский',
+               'РОВЕНЬСКИЙ': 'Ровеньский',
+               'СТАРООСКОЛЬСКИЙ': 'Старооскольский',
+               'ЧЕРНЯНСКИЙ': 'Чернянский',
+               'ШЕБЕКИНСКИЙ': 'Шебекинский',
+               'ЯКОВЛЕВСКИЙ': 'Яковлевский'}
+
+
+
+    if (string is None):
+        return None
+    else:
+        string = str(string).upper()
+        patterns = spravochnik_street
+        suff_nas_list = get_nas_punkt_new(string, return_list=True)
+        nas_set = set([i[1] for i in suff_nas_list])
+        suff_set = set([i[0] for i in suff_nas_list])
+        pat_df = patterns.loc[
+            (patterns["nas_punkt"].isin(nas_set)) & (patterns["nas_punkt_suffix"].isin(suff_set))].copy()
+        # pat_df.loc[:, "full_nas"] = pat_df["nas_punkt_suffix"] + ". " + pat_df["nas_punkt"]
+        pat_df["full_nas"] = pat_df["nas_punkt_suffix"] + ". " + pat_df["nas_punkt"]
+        # print(pat_df["full_nas"])
+        mo_res_list = []
+        for mo, nas in zip(pat_df["mo"], pat_df["full_nas"]):
+            street = get_street_new_opt(string, mo, nas)
+            if street is not None:
+                mo_res_list.append(mo)
+        mo_set = set(mo_res_list)
+        # print(mo_set)
+        if len(mo_set) == 1:
+            res = mo_list[list(mo_set)[0]]
+            return res
+
+
+
 
 # =================================== парсинг НОВЫЙ ПОДХОД ===============================
 # загружаем справочник из БД
@@ -256,59 +314,6 @@ spravochnik_street.columns = ['mo', 'nas_punkt', 'street', 'nas_punkt_suffix', '
 
 gar = pd.read_excel(r"C:\Users\svetlichnyy_av\PycharmProjects\parse_address\gar.xlsx")
 
-# ============================================ МУНИЦИПАЛИТЕТ ==========================================
-
-def get_mo_spr(string):
-    '''
-    Определяет муниципалитет с помощью справочника
-    '''
-
-    if (string is None):
-        return None
-    else:
-
-        # print(string)
-
-        # mo_list = []
-        # nas_list = []
-        # spr = spravochnik_street
-        # spr = spr.drop_duplicates(subset=["mo", "nas_punkt"])
-        # # print(nas_punkt)
-        # for mo, nas in zip(spr["mo"], spr["nas_punkt"]):
-        #     # print(nas.rsplit(maxsplit=1)[0])
-        #     match = re.search(fr"(\s|,|\.|^){nas}(\s|,|$|\.)", string, re.IGNORECASE)
-        #     if match:
-        #         # print(nas)
-        #         nas_list.append(nas)
-        #         mo_list.append(mo)
-        #
-        # mo_list = set(mo_list)
-        # print(mo_list)
-        # if len(mo_list) == 1:
-        #     res = list(mo_list)[0]
-        #     return res
-        # else:
-        #     mo_nas_list = []
-        #
-        string = str(string).upper()
-        patterns = spravochnik_street
-        suff_nas_list = get_nas_punkt_new(string, return_list=True)
-        nas_set = set([i[1] for i in suff_nas_list])
-        suff_set = set([i[0] for i in suff_nas_list])
-        pat_df = patterns.loc[
-            (patterns["nas_punkt"].isin(nas_set)) & (patterns["nas_punkt_suffix"].isin(suff_set))].copy()
-        # pat_df.loc[:, "full_nas"] = pat_df["nas_punkt_suffix"] + ". " + pat_df["nas_punkt"]
-        pat_df["full_nas"] = pat_df["nas_punkt_suffix"] + ". " + pat_df["nas_punkt"]
-        # print(pat_df["full_nas"])
-        mo_res_list = []
-        for mo, nas in zip(pat_df["mo"], pat_df["full_nas"]):
-            street = get_street_new_opt(string, mo, nas)
-            if street is not None:
-                mo_res_list.append(mo)
-        mo_set = set(mo_res_list)
-        # print(mo_set)
-        if len(mo_set) == 1:
-            return list(mo_set)[0]
 
 
 # ============================================ НАСЕЛЕННЫЙ ПУНКТ =======================================
