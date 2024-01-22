@@ -4,9 +4,10 @@ import pandas as pd
 import re
 import matplotlib.pyplot as plt
 import time
+import os
 
-mo_norm = pd.read_excel("муниципалитеты.xlsx")
-
+path_mo = os.path.join(os.path.dirname(__file__), "муниципалитеты.xlsx")
+mo_norm = pd.read_excel(path_mo)
 
 # ================================= ОСНОВНАЯ ФУНКЦИЯ ======================================
 def parse_address(df, from_col, neiro=0, add_mo_norm=True):
@@ -319,7 +320,8 @@ spravochnik_street.columns = ['mo', 'nas_punkt', 'street', 'nas_punkt_suffix', '
 
 # ========================================= ЗАГРУЖАЕМ ГАР =============================================
 
-gar = pd.read_excel("gar.xlsx")
+path_gar = os.path.join(os.path.dirname(__file__), "gar.xlsx")
+gar = pd.read_excel(path_gar)
 
 
 
