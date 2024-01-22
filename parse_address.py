@@ -5,7 +5,7 @@ import re
 import matplotlib.pyplot as plt
 import time
 
-mo_norm = pd.read_excel(r"C:\Users\svetlichnyy_av\PycharmProjects\parse_address\муниципалитеты.xlsx")
+mo_norm = pd.read_excel("муниципалитеты.xlsx")
 
 
 # ================================= ОСНОВНАЯ ФУНКЦИЯ ======================================
@@ -319,7 +319,7 @@ spravochnik_street.columns = ['mo', 'nas_punkt', 'street', 'nas_punkt_suffix', '
 
 # ========================================= ЗАГРУЖАЕМ ГАР =============================================
 
-gar = pd.read_excel(r"C:\Users\svetlichnyy_av\PycharmProjects\parse_address\gar.xlsx")
+gar = pd.read_excel("gar.xlsx")
 
 
 
