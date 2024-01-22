@@ -677,10 +677,11 @@ def get_comment(string):
 # ================================= нейросеть =============================================
 
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
+import os
 import torch.nn as nn
 
 # загружаем модель
-model_path = r"C:\Users\svetlichnyy_av\PycharmProjects\MO_нейросеть\обученная модель\rubert-tiny-sentiment-balanced"
+model_path = os.path.join(os.path.dirname(__file__), r"обученная модель\rubert-tiny-sentiment-balanced")
 model = AutoModelForSequenceClassification.from_pretrained(model_path)
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 
