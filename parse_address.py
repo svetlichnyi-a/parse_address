@@ -9,7 +9,7 @@ mo_norm = pd.read_excel(r"C:\Users\svetlichnyy_av\PycharmProjects\parse_address\
 
 
 # ================================= ОСНОВНАЯ ФУНКЦИЯ ======================================
-def parse_address(df, from_col, neiro=0, add_mo_norm=False):
+def parse_address(df, from_col, neiro=0, add_mo_norm=True):
     # основная функция, которая создает нужные колонки и парсит в них адрес
     start_time = time.time()
     df = df.copy()
