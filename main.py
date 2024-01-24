@@ -3,8 +3,8 @@ import pandas as pd
 
 print("start")
 
-PATH = "files_for_parsing/на парсинг.xlsx"  # путь к файлу
-COL = "Адрес_пациента_формализованный"  # колонка которую нужно распарсить
+PATH = "для_отладки.xlsx"  # путь к файлу
+COL = "Адрес"  # колонка которую нужно распарсить
 
 df = pd.read_excel(PATH, skiprows=0)  # загружаем таблицу.
 
