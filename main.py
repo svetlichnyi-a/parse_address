@@ -3,12 +3,12 @@ import pandas as pd
 
 print("start")
 
-PATH = "на парсинг.xlsx"  # путь к файлу
-COL = "Адрес_пациента_формализованный"  # колонка которую нужно распарсить
+PATH = r"files_for_parsing/TAP_Diagn_week20240215.csv"  # путь к файлу
+COL = "Адрес_пациента_неформализованный"  # колонка которую нужно распарсить
 
-df = pd.read_excel(PATH, skiprows=0)  # загружаем таблицу.
+df = pd.read_csv(PATH)  # загружаем таблицу.
 
 parsed = parse_address(df, COL, neiro=1, add_mo_norm=1)  # парсим и сохраняем результат в переменную
-parsed.to_excel("parsed.xlsx", index=False)  # сохраняем результат в эксель
+parsed.to_excel("PARSED/TAP_Diagn_week20240215_PARSED.xlsx", index=False)  # сохраняем результат в эксель
 
 print("end")
